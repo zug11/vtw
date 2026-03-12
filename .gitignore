@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+*.db
+empirical_data/
+error_model.json
+.DS_Store
+*.cnf
+/tmp/
