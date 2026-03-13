@@ -1,20 +1,30 @@
-# VTW — Verifier Treewidth Optimization Engine
+# VTW — Verifier Treewidth Research Toolkit
 
 **The compiler already wrote the code. This tool measures how hard it is to read.**
 
-A computational framework for the [Verifier Treewidth](https://en.wikipedia.org/wiki/Treewidth) approach to P vs NP. Based on the paper *"The Compiler Already Wrote the Code: Verifier Treewidth, the Topology of Hardness, and the Boundaries of Retrocausal Computation"* (Klugman, 2026).
+A Python research toolkit and experimental engine for the [Verifier Treewidth](https://en.wikipedia.org/wiki/Treewidth) (VTW) approach to computational complexity. Companion to the paper *"The Compiler Already Wrote the Code: Verifier Treewidth, the Topology of Hardness, and the Boundaries of Retrocausal Computation"* (Klugman, 2026).
 
 ---
+
+## What Is This?
+
+VTW is an **experimental toolkit** for measuring and restructuring the constraint-graph treewidth of polynomial-time verifiers. It implements a complete computational workflow:
+
+```
+Instance → Build constraint graph → Measure treewidth → Restructure → Re-measure → Compare
+```
+
+You can use it to generate SAT instances, construct their constraint graphs, compute treewidth (exactly or heuristically), apply restructuring strategies, and study how treewidth responds. The toolkit is designed for researchers and practitioners interested in the structural complexity of verification.
 
 ## The Idea
 
 P vs NP asks: can every problem whose solutions are quickly *checkable* also be quickly *solved*?
 
-The VTW framework flips this around. A polynomial-time verifier is a compact circuit that perfectly partitions candidate solutions into valid and invalid. The partition *is* the solution — encoded in the verifier's constraint structure. The question becomes: **under what conditions can we read the solution out of the verifier?**
+The VTW framework approaches this from a structural angle. A polynomial-time verifier is a compact circuit that perfectly partitions candidate solutions into valid and invalid. The partition *is* the solution — encoded in the verifier's constraint structure. The question becomes: **under what conditions can we read the solution out of the verifier?**
 
-The answer is topological. Build the **constraint graph** of the verifier circuit — edge (i,j) whenever certificate bits i and j co-occur in some gate's input cone. The **treewidth** of this graph measures how entangled the verification is.
+The answer may be topological. Build the **constraint graph** of the verifier circuit — edge (i,j) whenever certificate bits i and j co-occur in some gate's input cone. The **treewidth** of this graph measures how entangled the verification is.
 
-**Theorem (VTW Equivalence).** *P = NP if and only if every NP language has a verifier whose constraint graph has treewidth O(log n).*
+**The central hypothesis of the VTW framework:** P = NP if and only if every NP language has a verifier whose constraint graph has treewidth O(log n). This toolkit was built to experimentally probe this hypothesis — measuring treewidth at scale, testing restructuring strategies, and mapping out where they succeed or fail.
 
 This tool measures that treewidth, analyzes the constraint topology, and attempts to restructure it.
 
@@ -35,7 +45,7 @@ The **optimization loop** is the core. VTW is both diagnostic and design target:
 
 ## Empirical Results
 
-The engine reproduces the paper's key empirical findings:
+The engine reproduces the paper's key empirical measurements. These are experimental observations from the toolkit's output, not formal complexity-theoretic proofs:
 
 | Measurement | Value | Significance |
 |---|---|---|
@@ -206,24 +216,24 @@ VTWOptimizer (the feedback loop)
 
 ## The Remaining Gap
 
-The VTW framework establishes that for random 3-SAT, every concrete verification strategy produces constraint graphs with superlogarithmic treewidth:
+The VTW framework, as developed in the companion paper, derives lower bounds on treewidth for various classes of verifiers applied to random 3-SAT. The toolkit's empirical results are consistent with these bounds:
 
-| Verifier Class | VTW Lower Bound | Status |
+| Verifier Class | VTW Lower Bound | Source |
 |---|---|---|
-| Natural certificate (m = n) | Ω(log n) | Proven |
-| Monotone verifiers | Ω(n^{1/4} / log n) | Proven |
-| Oblivious verifiers | Ω(n / log n) | Proven |
-| Single-pass verifiers | Θ(n) | Proven |
-| PCP verifiers | Ω(poly(n) / log n) | Proven |
-| Block-padded (cert n^c) | Ω(n^{1/c}) | Proven |
-| Aux-containing padded | Ω(n^δ) | Proven |
-| All verifiers (ETH) | ω(log n) | Conditional |
-| All verifiers (SETH) | Θ(n) | Conditional |
+| Natural certificate (m = n) | Ω(log n) | Paper, §3 |
+| Monotone verifiers | Ω(n^{1/4} / log n) | Paper, §4 |
+| Oblivious verifiers | Ω(n / log n) | Paper, §4 |
+| Single-pass verifiers | Θ(n) | Paper, §4 |
+| PCP verifiers | Ω(poly(n) / log n) | Paper, §5 |
+| Block-padded (cert n^c) | Ω(n^{1/c}) | Paper, §5 |
+| Aux-containing padded | Ω(n^δ) | Paper, §5 |
+| All verifiers (ETH) | ω(log n) | Conditional on ETH |
+| All verifiers (SETH) | Θ(n) | Conditional on SETH |
 | General exotic encoding | ??? | **Open — this is P vs NP** |
 
-The one remaining adversary: a non-monotone, adaptive verifier whose certificate does not contain the variable assignment in any recognizable form, using an exotic encoding that reconstructs satisfaction through a fundamentally different computational pathway. Every natural strategy fails. Every padding strategy fails. The conditional results say it does not exist. The empirical data shows no hint of it.
+Every natural restructuring strategy studied by this toolkit moves or fails to reduce treewidth for random instances. The conditional results (assuming ETH/SETH) suggest the exotic adversary does not exist — but ruling it out unconditionally requires resolving P vs NP itself.
 
-But we cannot rule it out without solving circuit complexity.
+The empirical data shows no hint of an exotic low-treewidth encoding. Whether that gap can be closed is the open question the framework is designed to sharpen.
 
 ## Acknowledgments
 
