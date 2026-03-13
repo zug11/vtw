@@ -1,8 +1,8 @@
-# VTW — Verifier Treewidth Optimization Engine
+# VTW — Verifier Treewidth Research Toolkit
 
 **The compiler already wrote the code. This tool measures how hard it is to read.**
 
-A computational framework for the [Verifier Treewidth](https://en.wikipedia.org/wiki/Treewidth) approach to P vs NP. Based on the paper *"The Compiler Already Wrote the Code: Verifier Treewidth, the Topology of Hardness, and the Boundaries of Retrocausal Computation"* (Klugman, 2026).
+A Python research toolkit and experimental engine for the [Verifier Treewidth](https://en.wikipedia.org/wiki/Treewidth) approach to P vs NP. Companion to the working paper *"The Compiler Already Wrote the Code: Verifier Treewidth, the Topology of Hardness, and the Boundaries of Retrocausal Computation"* (Klugman, 2026) — an ongoing theoretical research program.
 
 ---
 
@@ -14,9 +14,9 @@ The VTW framework flips this around. A polynomial-time verifier is a compact cir
 
 The answer is topological. Build the **constraint graph** of the verifier circuit — edge (i,j) whenever certificate bits i and j co-occur in some gate's input cone. The **treewidth** of this graph measures how entangled the verification is.
 
-**Theorem (VTW Equivalence).** *P = NP if and only if every NP language has a verifier whose constraint graph has treewidth O(log n).*
+**Central Claim (VTW Equivalence, Klugman 2026).** *P = NP if and only if every NP language has a verifier whose constraint graph has treewidth O(log n).*
 
-This tool measures that treewidth, analyzes the constraint topology, and attempts to restructure it.
+This is the core conjecture of the framework — not yet peer-reviewed. This tool measures that treewidth, analyzes the constraint topology, and attempts to restructure it.
 
 ## What This Tool Does
 
@@ -206,7 +206,7 @@ VTWOptimizer (the feedback loop)
 
 ## The Remaining Gap
 
-The VTW framework establishes that for random 3-SAT, every concrete verification strategy produces constraint graphs with superlogarithmic treewidth:
+The paper argues that for random 3-SAT, every concrete verification strategy produces constraint graphs with superlogarithmic treewidth. The entries below reflect claims from the working paper (Klugman, 2026); "Proven" means established within the paper's framework, not yet independently verified:
 
 | Verifier Class | VTW Lower Bound | Status |
 |---|---|---|
