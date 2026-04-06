@@ -9,6 +9,10 @@ Usage:
     python -m vtw run-experiment --n-range 10,50 # Batch experiment
     python -m vtw calibrate --n-range 5,30       # Build error model
     python -m vtw validate-solvers               # Cross-validate exact solvers
+    python -m vtw product_bound --n-values 10,20,30,50  # Problem 1
+    python -m vtw grid_minor --k-values 4,5,6,7         # Problem 3
+    python -m vtw not_gate --n-values 10,20,30           # Problem 2
+    python -m vtw spectral --n-values 10,20,30,50        # Problem 9
 """
 
 import argparse
@@ -199,6 +203,147 @@ def cmd_calibrate(args):
     print(f"  Std ratio:   {model.std_ratio:.4f}")
 
 
+def cmd_product_bound(args):
+    """Run product bound experiment (Problem 1)."""
+    import os
+    from vtw.product_bound import ProductBoundExperiment
+
+    config = VTWConfig()
+    experiment = ProductBoundExperiment(config)
+
+    n_values = [int(x) for x in args.n_values.split(",")]
+    scan = experiment.run(
+        n_values=n_values,
+        trials_per_n=args.trials,
+        verbose=True,
+    )
+
+    os.makedirs(args.output_dir, exist_ok=True)
+    csv_path = os.path.join(args.output_dir, "product_bound.csv")
+    experiment.save_csv(scan, csv_path)
+
+
+def cmd_grid_minor(args):
+    """Run grid minor persistence experiment (Problem 3)."""
+    import os
+    import csv
+    from vtw.grid_minor import GridMinorPersistenceExperiment
+
+    config = VTWConfig()
+    experiment = GridMinorPersistenceExperiment(config)
+
+    k_values = [int(x) for x in args.k_values.split(",")]
+    strategy_names = args.strategies.split(",") if args.strategies and args.strategies != "all" else None
+
+    scan = experiment.run(
+        k_values=k_values,
+        strategy_names=strategy_names,
+        verbose=True,
+    )
+
+    os.makedirs(args.output_dir, exist_ok=True)
+    csv_path = os.path.join(args.output_dir, "grid_minor.csv")
+    if scan.results:
+        with open(csv_path, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=[
+                "n_vars", "strategy", "grid_minor_before", "grid_minor_after",
+                "preserved", "log_n_threshold",
+            ])
+            writer.writeheader()
+            for r in scan.results:
+                writer.writerow({
+                    "n_vars": r.n_vars, "strategy": r.strategy,
+                    "grid_minor_before": r.grid_minor_before,
+                    "grid_minor_after": r.grid_minor_after,
+                    "preserved": r.preserved,
+                    "log_n_threshold": round(r.log_n_threshold, 4),
+                })
+        print(f"Saved {len(scan.results)} rows to {csv_path}")
+
+
+def cmd_not_gate(args):
+    """Run NOT-gate invariance experiment (Problem 2)."""
+    import os
+    import csv
+    from vtw.circuit_transform import NotGateInvarianceExperiment
+
+    config = VTWConfig()
+    experiment = NotGateInvarianceExperiment(config)
+
+    n_values = [int(x) for x in args.n_values.split(",")]
+    scan = experiment.run(
+        n_values=n_values,
+        trials_per_n=args.trials,
+        verbose=True,
+    )
+
+    os.makedirs(args.output_dir, exist_ok=True)
+    csv_path = os.path.join(args.output_dir, "not_gate_invariance.csv")
+    if scan.results:
+        with open(csv_path, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=[
+                "n_vars", "transform", "tw_before", "tw_after",
+                "graph_changed", "treewidth_changed", "trial",
+            ])
+            writer.writeheader()
+            for r in scan.results:
+                writer.writerow({
+                    "n_vars": r.n_vars, "transform": r.transform,
+                    "tw_before": r.tw_before, "tw_after": r.tw_after,
+                    "graph_changed": r.graph_changed,
+                    "treewidth_changed": r.treewidth_changed,
+                    "trial": r.trial,
+                })
+        print(f"Saved {len(scan.results)} rows to {csv_path}")
+
+
+def cmd_spectral(args):
+    """Run spectral analysis experiment (Problem 9)."""
+    import os
+    import csv
+    from vtw.spectral_analysis import SpectralAnalysisExperiment
+
+    config = VTWConfig()
+    experiment = SpectralAnalysisExperiment(config)
+
+    n_values = [int(x) for x in args.n_values.split(",")]
+    strategies = args.strategies.split(",") if args.strategies else None
+
+    scan = experiment.run(
+        n_values=n_values,
+        trials_per_n=args.trials,
+        strategies=strategies,
+        verbose=True,
+    )
+
+    os.makedirs(args.output_dir, exist_ok=True)
+    csv_path = os.path.join(args.output_dir, "spectral_analysis.csv")
+    if scan.measurements:
+        with open(csv_path, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=[
+                "n", "strategy", "treewidth", "lambda_2", "lambda_max",
+                "cheeger_lower", "cheeger_upper", "cheeger_empirical",
+                "tw_from_grohe_marx", "tw_over_grohe_marx",
+                "algebraic_connectivity", "trial",
+            ])
+            writer.writeheader()
+            for m in scan.measurements:
+                writer.writerow({
+                    "n": m.n, "strategy": m.strategy,
+                    "treewidth": m.treewidth,
+                    "lambda_2": round(m.lambda_2, 6),
+                    "lambda_max": round(m.lambda_max, 6),
+                    "cheeger_lower": round(m.cheeger_lower, 6),
+                    "cheeger_upper": round(m.cheeger_upper, 6),
+                    "cheeger_empirical": round(m.cheeger_empirical, 6),
+                    "tw_from_grohe_marx": round(m.tw_from_grohe_marx, 4),
+                    "tw_over_grohe_marx": round(m.tw_over_grohe_marx, 4),
+                    "algebraic_connectivity": round(m.algebraic_connectivity, 6),
+                    "trial": m.trial,
+                })
+        print(f"Saved {len(scan.measurements)} rows to {csv_path}")
+
+
 def cmd_validate_solvers(args):
     """Cross-validate twalgor vs Jdrasil on small instances."""
     from vtw.exact import ExactSolver
@@ -283,6 +428,31 @@ def main():
     # validate-solvers
     subparsers.add_parser("validate-solvers", help="Cross-validate exact solvers")
 
+    # product_bound (Problem 1)
+    pb_p = subparsers.add_parser("product_bound", help="Product bound experiment (Problem 1)")
+    pb_p.add_argument("--n-values", default="10,20,30,50", help="Comma-separated n values")
+    pb_p.add_argument("--trials", type=int, default=5, help="Trials per n")
+    pb_p.add_argument("--output-dir", default="empirical_data", help="Output directory")
+
+    # grid_minor (Problem 3)
+    gm_p = subparsers.add_parser("grid_minor", help="Grid minor persistence experiment (Problem 3)")
+    gm_p.add_argument("--k-values", default="4,5,6,7", help="Comma-separated grid sizes k")
+    gm_p.add_argument("--strategies", default=None, help="Comma-separated strategies or 'all'")
+    gm_p.add_argument("--output-dir", default="empirical_data", help="Output directory")
+
+    # not_gate (Problem 2)
+    ng_p = subparsers.add_parser("not_gate", help="NOT-gate invariance experiment (Problem 2)")
+    ng_p.add_argument("--n-values", default="10,20,30", help="Comma-separated n values")
+    ng_p.add_argument("--trials", type=int, default=50, help="Trials per n")
+    ng_p.add_argument("--output-dir", default="empirical_data", help="Output directory")
+
+    # spectral (Problem 9)
+    sp_p = subparsers.add_parser("spectral", help="Spectral analysis experiment (Problem 9)")
+    sp_p.add_argument("--n-values", default="10,20,30,50,80", help="Comma-separated n values")
+    sp_p.add_argument("--trials", type=int, default=10, help="Trials per n")
+    sp_p.add_argument("--strategies", default=None, help="Comma-separated strategies")
+    sp_p.add_argument("--output-dir", default="empirical_data", help="Output directory")
+
     args = parser.parse_args()
 
     if args.command is None:
@@ -298,6 +468,10 @@ def main():
         "run-experiment": cmd_run_experiment,
         "calibrate": cmd_calibrate,
         "validate-solvers": cmd_validate_solvers,
+        "product_bound": cmd_product_bound,
+        "grid_minor": cmd_grid_minor,
+        "not_gate": cmd_not_gate,
+        "spectral": cmd_spectral,
     }
 
     cmd_func = commands.get(args.command)

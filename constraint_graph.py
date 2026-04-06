@@ -184,6 +184,45 @@ def _estimate_cheeger_random_cuts(G: nx.Graph, n_samples: int = 100) -> float:
     return min_ratio if min_ratio != float("inf") else 0.0
 
 
+def constraint_graph_laplacian_stats(G: nx.Graph) -> dict:
+    """Compute Laplacian spectral statistics for a constraint graph.
+
+    Returns dict with lambda_2 (spectral gap), lambda_max,
+    cheeger_lower (lambda_2/2), cheeger_upper (sqrt(2*lambda_2)),
+    and grohe_marx_tw_lower (lambda_2*n/2*log(n)).
+
+    These provide a spectral-theoretic lower bound on treewidth
+    via the Grohe-Marx bound: tw >= Omega(h*n/log n) >= Omega(lambda_2*n/2*log n).
+    """
+    n = G.number_of_nodes()
+    if n < 3 or G.number_of_edges() == 0:
+        return {
+            "lambda_2": 0.0, "lambda_max": 0.0,
+            "cheeger_lower": 0.0, "cheeger_upper": 0.0,
+            "grohe_marx_tw_lower": 0.0,
+        }
+    try:
+        import math
+        L = nx.normalized_laplacian_matrix(G).toarray()
+        eigenvalues = sorted(np.real(np.linalg.eigvalsh(L)))
+        lam2 = float(eigenvalues[1]) if len(eigenvalues) > 1 else 0.0
+        lam_max = float(eigenvalues[-1]) if eigenvalues else 0.0
+        log_n = math.log(max(n, 2))
+        return {
+            "lambda_2": lam2,
+            "lambda_max": lam_max,
+            "cheeger_lower": lam2 / 2.0,
+            "cheeger_upper": math.sqrt(max(0.0, 2.0 * lam2)),
+            "grohe_marx_tw_lower": lam2 * n / (2.0 * log_n),
+        }
+    except Exception:
+        return {
+            "lambda_2": 0.0, "lambda_max": 0.0,
+            "cheeger_lower": 0.0, "cheeger_upper": 0.0,
+            "grohe_marx_tw_lower": 0.0,
+        }
+
+
 def find_separators(G: nx.Graph, min_size: int = 1) -> list[set[int]]:
     """Find vertex separators in the constraint graph.
 

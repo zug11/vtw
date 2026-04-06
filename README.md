@@ -49,6 +49,69 @@ The engine reproduces the paper's key empirical findings:
 
 The last row is the practical punchline: **low treewidth in real systems is an engineering achievement, not a distributional gift.** Modular schemas, separation of concerns, and test-driven development work because they minimize verification treewidth.
 
+## Gap-Attack Experiments
+
+The VTW engine includes experimental infrastructure for attacking the 4 highest-priority open problems from the v9 paper. These experiments probe the boundaries of the VTW framework — each targets a specific theoretical gap where a counterexample or tighter bound would advance the P vs NP question.
+
+### Problem 1: Product Bound (`product_bound`)
+
+**Theorem 3.12 (v6):** k * m >= Omega(n log n) for any verifier with treewidth k and certificate length m.
+
+**Goal:** Empirically test whether the exponent is actually higher — Omega(n^{1+epsilon}) — by padding certificates to length m = n^alpha and measuring the resulting treewidth.
+
+```bash
+python3 -m vtw product_bound --n-values 10,20,30,50 --trials 5
+```
+
+Outputs a fitted exponent beta from log-log regression of k*m vs n. If beta > 1.05, the data supports a stronger-than-logarithmic product bound.
+
+### Problem 2: NOT-Gate Invariance (`not_gate`)
+
+**Theorem 3.11 (v6):** VTW_monotone(k-CLIQUE) >= Omega(n^{1/4} / log n).
+
+**Goal:** Test whether NOT gates can reduce constraint-graph treewidth. The constraint graph depends on variable co-occurrence, not polarity — so treewidth should be invariant under polarity transforms (double negation, De Morgan, random flip).
+
+```bash
+python3 -m vtw not_gate --n-values 10,20,30 --trials 50
+```
+
+Any violation (treewidth change after a polarity transform) would identify an algebrizing adversary — a critical finding for the monotone-to-general extension.
+
+### Problem 3: Grid Minor Persistence (`grid_minor`)
+
+**Conjecture (v5, Problem 3):** Any certificate transformation preserving polynomial length also preserves grid minors of size omega(log n) x omega(log n).
+
+**Goal:** Test whether the 5 restructuring strategies can eliminate large grid minors from grid-structured CSP instances. If the conjecture holds, bounded treewidth implies no large grid minor (Robertson-Seymour), resolving P vs NP.
+
+```bash
+python3 -m vtw grid_minor --k-values 4,5,6,7 --strategies all
+```
+
+Reports per-strategy persistence rates. A strategy that eliminates a grid minor would point to the exotic encoding adversary.
+
+### Problem 9: Spectral-Treewidth Correspondence (`spectral`)
+
+**Auxiliary Expander Theorem (v9):** h >= Omega(1) implies tw >= Omega(n^{1/2}/log n) via the Grohe-Marx bound tw(G) >= Omega(h * n / log n).
+
+**Goal:** Track the spectral gap lambda_2 and its correlation with measured treewidth across instances and restructuring strategies. Tests whether lambda_2 >= Omega(1/n) is a sufficient condition for tw >= Omega(sqrt(n)).
+
+```bash
+python3 -m vtw spectral --n-values 10,20,30,50,80 --trials 10
+```
+
+Reports lambda_2 ranges, Cheeger bounds, Grohe-Marx lower bounds, and the tw ~ Grohe-Marx correlation coefficient.
+
+### Open Problems Reference
+
+| # | Problem | Module | Status |
+|---|---|---|---|
+| 1 | Strengthen product bound k*m >= Omega(n^{1+epsilon}) | `product_bound` | Empirical |
+| 2 | NOT-gate treewidth invariance | `circuit_transform` | Empirical |
+| 3 | Grid minor persistence conjecture | `grid_minor` | Empirical |
+| 9 | Spectral-treewidth correspondence | `spectral_analysis` | Empirical |
+
+All experiment results are saved as CSV to `empirical_data/`.
+
 ## Installation
 
 ```bash
