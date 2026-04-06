@@ -266,6 +266,7 @@ VTWOptimizer (the feedback loop)
 | `formats.py` | 114 | PACE .gr/.td format bridge (shared by both Java solvers) |
 | `heuristic.py` | 92 | networkx treewidth heuristics |
 | `config.py` | 128 | Auto-detecting solver configuration |
+| `algebraic_certificate.py` | ~370 | Algebraic witness construction (P=NP claim experiment) |
 
 ## The Remaining Gap
 
@@ -287,6 +288,78 @@ The VTW framework establishes that for random 3-SAT, every concrete verification
 The one remaining adversary: a non-monotone, adaptive verifier whose certificate does not contain the variable assignment in any recognizable form, using an exotic encoding that reconstructs satisfaction through a fundamentally different computational pathway. Every natural strategy fails. Every padding strategy fails. The conditional results say it does not exist. The empirical data shows no hint of it.
 
 But we cannot rule it out without solving circuit complexity.
+
+## The P=NP Claim: Algebraic Witness Construction
+
+**Status: Research CLAIM — not a proven result.**
+
+The `algebraic_certificate` module implements the most aggressive attack on the VTW gap: instead of presenting a raw variable assignment as the verification certificate, it encodes the assignment algebraically using multilinear extensions evaluated over a tree-structured point set.
+
+### The Construction
+
+1. **Multilinear Extension**: Given a satisfying assignment `a ∈ {0,1}^n`, compute its unique multilinear extension `ã: F_p^n → F_p`:
+
+   ```
+   ã(y) = Σ_{x ∈ {0,1}^n} a(x) · Π_i (y_i·x_i + (1-y_i)·(1-x_i))
+   ```
+
+2. **Tree-Structured Evaluation**: Build a balanced binary tree of depth `⌈log₂ n⌉`. Assign variables to leaves. Each internal node stores `ã(y)` evaluated at a tree-determined point. The certificate consists of these `O(n)` field evaluations.
+
+3. **Constraint Graph**: Each clause check becomes a low-degree polynomial identity. The tree structure means clause verifications only touch nodes along root-to-leaf paths, creating a constraint graph whose treewidth is bounded by `O(depth × query_complexity)`.
+
+4. **The Claim**: If the resulting constraint graph has treewidth `O(log² n)`, then SAT ∈ P via the VTW equivalence theorem, establishing P = NP.
+
+### What Would Need to Hold
+
+The claim depends on the **Local Decoding Lemma** (unproven):
+
+> *For any 3-SAT clause involving variables assigned to leaves `l₁, l₂, l₃` in the tree, the algebraic verification of that clause through the multilinear extension requires only evaluations on the paths from each `lᵢ` to the root, plus O(1) auxiliary evaluations per tree level.*
+
+If this lemma holds, the constraint graph has treewidth `O(log² n)` because:
+- Each clause touches `O(log n)` tree nodes (3 root-to-leaf paths)
+- The tree structure ensures bounded bag sizes in the tree decomposition
+- The total treewidth is `O(depth × max_path_overlap) = O(log n × log n)`
+
+### Running the Experiment
+
+```bash
+# Default: n=6,8,...,18 with 5 trials each
+python -m vtw algebraic --n-max 18 --trials 5
+
+# Larger experiment
+python -m vtw algebraic --n-max 20 --trials 10 --output-dir empirical_data
+```
+
+The experiment generates planted (satisfiable) 3-SAT instances, finds assignments by brute force (n ≤ 20), builds tree certificates, and compares `tree_cert_tw / log²(n)` against `natural_tw / n`. If the ratio `cert_tw / log²(n)` stays bounded as n grows, it supports the claim.
+
+### Python API
+
+```python
+from vtw.algebraic_certificate import (
+    AlgebraicCertificate,
+    AlgebraicTWExperiment,
+    multilinear_extension,
+    find_satisfying_assignment,
+    next_prime_after,
+)
+
+# Build a certificate for a known assignment
+assignment = [True, False, True, True, False]
+clauses = [[1, -2, 3], [-1, 4, -5], [2, 3, 5]]
+cert = AlgebraicCertificate(assignment, clauses)
+vtw_instance = cert.build()
+print(f"Certificate treewidth structure: {vtw_instance}")
+
+# Run the full experiment
+experiment = AlgebraicTWExperiment()
+results = experiment.run(n_values=[8, 10, 12, 14], trials=5)
+```
+
+### Interpretation
+
+- If `cert_tw / log²(n) → constant` as n grows: empirically consistent with O(log² n), supports P=NP
+- If `cert_tw / log²(n) → ∞`: the algebraic encoding does not achieve the bound, does NOT disprove P=NP (other encodings may work)
+- The brute-force n ≤ 20 limit means this experiment cannot test asymptotic behavior — it only checks small-n consistency
 
 ## Acknowledgments
 

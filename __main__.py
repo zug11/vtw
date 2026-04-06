@@ -13,6 +13,7 @@ Usage:
     python -m vtw grid_minor --k-values 4,5,6,7         # Problem 3
     python -m vtw not_gate --n-values 10,20,30           # Problem 2
     python -m vtw spectral --n-values 10,20,30,50        # Problem 9
+    python -m vtw algebraic --n-max 18 --trials 5        # Algebraic witness (P=NP claim)
 """
 
 import argparse
@@ -344,6 +345,47 @@ def cmd_spectral(args):
         print(f"Saved {len(scan.measurements)} rows to {csv_path}")
 
 
+def cmd_algebraic(args):
+    """Run algebraic witness construction experiment (P=NP claim)."""
+    import os
+    import csv
+    from vtw.algebraic_certificate import AlgebraicTWExperiment
+
+    experiment = AlgebraicTWExperiment(verbose=True)
+
+    n_max = min(args.n_max, 20)  # Brute force limit
+    n_values = list(range(6, n_max + 1, 2))
+
+    scan = experiment.run(n_values=n_values, trials=args.trials)
+
+    os.makedirs(args.output_dir, exist_ok=True)
+    csv_path = os.path.join(args.output_dir, "algebraic_certificate.csv")
+    if scan.results:
+        sat_results = [r for r in scan.results if r.satisfiable]
+        if sat_results:
+            with open(csv_path, "w", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=[
+                    "n_vars", "trial", "natural_tw", "tree_cert_tw",
+                    "cert_n_vars", "tree_depth", "log2_n_squared",
+                    "cert_tw_over_log2n_sq", "natural_tw_over_n", "seed",
+                ])
+                writer.writeheader()
+                for r in sat_results:
+                    writer.writerow({
+                        "n_vars": r.n_vars,
+                        "trial": r.trial,
+                        "natural_tw": r.natural_tw,
+                        "tree_cert_tw": r.tree_cert_tw,
+                        "cert_n_vars": r.cert_n_vars,
+                        "tree_depth": r.tree_depth,
+                        "log2_n_squared": round(r.log2_n_squared, 4),
+                        "cert_tw_over_log2n_sq": round(r.tree_cert_tw_over_log2_n_sq, 4),
+                        "natural_tw_over_n": round(r.natural_tw_over_n, 4),
+                        "seed": r.seed,
+                    })
+            print(f"Saved {len(sat_results)} rows to {csv_path}")
+
+
 def cmd_validate_solvers(args):
     """Cross-validate twalgor vs Jdrasil on small instances."""
     from vtw.exact import ExactSolver
@@ -453,6 +495,12 @@ def main():
     sp_p.add_argument("--strategies", default=None, help="Comma-separated strategies")
     sp_p.add_argument("--output-dir", default="empirical_data", help="Output directory")
 
+    # algebraic (P=NP claim)
+    alg_p = subparsers.add_parser("algebraic", help="Algebraic witness construction (P=NP claim)")
+    alg_p.add_argument("--n-max", type=int, default=18, help="Max n (capped at 20 for brute force)")
+    alg_p.add_argument("--trials", type=int, default=5, help="Trials per n")
+    alg_p.add_argument("--output-dir", default="empirical_data", help="Output directory")
+
     args = parser.parse_args()
 
     if args.command is None:
@@ -472,6 +520,7 @@ def main():
         "grid_minor": cmd_grid_minor,
         "not_gate": cmd_not_gate,
         "spectral": cmd_spectral,
+        "algebraic": cmd_algebraic,
     }
 
     cmd_func = commands.get(args.command)
